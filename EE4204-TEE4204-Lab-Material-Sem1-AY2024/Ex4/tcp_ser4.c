@@ -76,17 +76,27 @@ void str_ser(int sockfd)
 	int end, n = 0;
 	long lseek=0;
 	end = 0;
+    int random_number;
+    float boundary;
 	
 	printf("receiving data!\n");
 
 	while(!end)
 	{
-		if ((n= recv(sockfd, &recvs, DATALEN, 0))==-1)                                   //receive the packet
+        // TODO: decide if data has an error using probability 
+        srand(time(NULL));
+        random_number = rand() % 1000;
+        boundary = random_number/1000;
+
+		if ((n= recv(sockfd, &recvs, DATALEN, 0))==-1 || boundary >= ERRORPROB) //receive the packet // TODO: add condition of error probability
 		{
-			printf("error when receiving\n");
+			printf("error when receiving\n"); // TODO: send NACK
 			exit(1);
 		}
-		if (recvs[n-1] == '\0')									//if it is the end of the file
+        else { // TODO: add send ACK 
+
+        }
+		if (recvs[n-1] == '\0')	//if it is the end of the file
 		{
 			end = 1;
 			n --;
@@ -98,7 +108,7 @@ void str_ser(int sockfd)
 	ack.len = 0;
 	if ((n = send(sockfd, &ack, 2, 0))==-1)
 	{
-			printf("send error!");								//send the ack
+			printf("send error!");	//send the ack
 			exit(1);
 	}
 	if ((fp = fopen ("myTCPreceive.txt","wt")) == NULL)
@@ -106,7 +116,7 @@ void str_ser(int sockfd)
 		printf("File doesn't exit\n");
 		exit(0);
 	}
-	fwrite (buf , 1 , lseek , fp);					//write data into file
+	fwrite (buf , 1 , lseek , fp); //write data into file
 	fclose(fp);
 	printf("a file has been successfully received!\nthe total data received is %d bytes\n", (int)lseek);
 }

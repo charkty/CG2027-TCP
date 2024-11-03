@@ -79,15 +79,15 @@ float str_cli(FILE *fp, int sockfd, long *len)
 {
 	char *buf;
 	long lsize, ci;
-	char sends[DATALEN];
+	char sends[DATALEN]; // DATALEN: supposed length of small data packet defined in headsock.h
 	struct ack_so ack;
-	int n, slen;
+	int n, slen; // slen: actual data size of small data packet, either DATALEN or less 
 	float time_inv = 0.0;
 	struct timeval sendt, recvt;
-	ci = 0;
+	ci = 0; // ci: counter variable that tracks the current position in the file data buffer, increments by slen 
 
 	fseek (fp , 0 , SEEK_END);
-	lsize = ftell (fp);
+	lsize = ftell (fp); // lsize: file size
 	rewind (fp);
 	printf("The file length is %d bytes\n", (int)lsize);
 	printf("the packet length is %d bytes\n",DATALEN);
@@ -110,8 +110,10 @@ float str_cli(FILE *fp, int sockfd, long *len)
 			slen = DATALEN;
 		memcpy(sends, (buf+ci), slen);
 		n = send(sockfd, &sends, slen, 0);
-		if(n == -1) {
+		// TODO: add func to receive ACK from server before sending next data
+		if(n == -1) { // TODO: add in condition for receiving an NACK from client
 			printf("send error!");								//send the data
+			// TODO: add in handling of error (resend data by resetting ci value)
 			exit(1);
 		}
 		ci += slen;
