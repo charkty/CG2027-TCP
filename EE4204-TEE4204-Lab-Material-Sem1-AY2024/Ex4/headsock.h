@@ -13,6 +13,7 @@
 #include <fcntl.h>
 #include <sys/time.h>
 #include <stdlib.h>
+#include <time.h>
 
 #define NEWFILE (O_WRONLY|O_CREAT|O_TRUNC)
 #define MYTCP_PORT 4950

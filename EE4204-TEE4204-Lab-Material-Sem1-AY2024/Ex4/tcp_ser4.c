@@ -80,33 +80,41 @@ void str_ser(int sockfd)
     float boundary;
 	
 	printf("receiving data!\n");
+    srand(time(NULL));
 
 	while(!end)
 	{
         // TODO: decide if data has an error using probability 
-        srand(time(NULL));
         random_number = rand() % 1000;
-        boundary = random_number/1000;
+        boundary = random_number / 1000.0;
 
-		if ((n= recv(sockfd, &recvs, DATALEN, 0))==-1 || boundary >= ERRORPROB) //receive the packet // TODO: add condition of error probability
+		if ((n=recv(sockfd, &recvs, DATALEN, 0)) == -1 || boundary <= ERRORPROB) //receive the packet // TODO: add condition of error probability
 		{
-			printf("error when receiving\n"); // TODO: send NACK
-			exit(1);
+            ack.num = 0; // TODO: send NACK
+            ack.len = 1;
 		}
-        else { // TODO: add send ACK 
-
+        else { // TODO: send ACK 
+            ack.num = 1;
+            ack.len = 1;
+            if (recvs[n-1] == '\0') { // if it is the end of the file
+                printf("end of file\n");
+                end = 1;
+                n --;
+            }
+            memcpy((buf+lseek), recvs, n);
+            lseek += n;
         }
-		if (recvs[n-1] == '\0')	//if it is the end of the file
-		{
-			end = 1;
-			n --;
-		}
-		memcpy((buf+lseek), recvs, n);
-		lseek += n;
-	}
+        n = send(sockfd, &ack, 2, 0);
+
+        if (n == -1) {
+            printf("error when sending ACK or NACK\n");
+            exit(1);
+        }
+    }
+	
 	ack.num = 1;
 	ack.len = 0;
-	if ((n = send(sockfd, &ack, 2, 0))==-1)
+	if ((n = send(sockfd, &ack, 2, 0))==-1) // send final ack
 	{
 			printf("send error!");	//send the ack
 			exit(1);

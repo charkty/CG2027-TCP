@@ -22,13 +22,13 @@ int main(int argc, char **argv)
 		printf("parameters not match");
 	}
 
-	sh = gethostbyname(argv[1]);	                                       //get host's information
+	sh = gethostbyname(argv[1]); //get host's information
 	if (sh == NULL) {
 		printf("error when gethostby name");
 		exit(0);
 	}
 
-	printf("canonical name: %s\n", sh->h_name);					//print the remote host's information
+	printf("canonical name: %s\n", sh->h_name);	//print the remote host's information
 	for (pptr=sh->h_aliases; *pptr != NULL; pptr++)
 		printf("the aliases name is: %s\n", *pptr);
 	switch(sh->h_addrtype)
@@ -42,7 +42,7 @@ int main(int argc, char **argv)
 	}
         
 	addrs = (struct in_addr **)sh->h_addr_list;
-	sockfd = socket(AF_INET, SOCK_STREAM, 0);                           //create the socket
+	sockfd = socket(AF_INET, SOCK_STREAM, 0); //create the socket
 	if (sockfd <0)
 	{
 		printf("error in socket");
@@ -52,7 +52,7 @@ int main(int argc, char **argv)
 	ser_addr.sin_port = htons(MYTCP_PORT);
 	memcpy(&(ser_addr.sin_addr.s_addr), *addrs, sizeof(struct in_addr));
 	bzero(&(ser_addr.sin_zero), 8);
-	ret = connect(sockfd, (struct sockaddr *)&ser_addr, sizeof(struct sockaddr));         //connect the socket with the host
+	ret = connect(sockfd, (struct sockaddr *)&ser_addr, sizeof(struct sockaddr)); //connect the socket with the host
 	if (ret != 0) {
 		printf ("connection failed\n"); 
 		close(sockfd); 
@@ -65,8 +65,8 @@ int main(int argc, char **argv)
 		exit(0);
 	}
 
-	ti = str_cli(fp, sockfd, &len);                       //perform the transmission and receiving
-	rt = (len/(float)ti);                                         //caculate the average transmission rate
+	ti = str_cli(fp, sockfd, &len); //perform the transmission and receiving
+	rt = (len/(float)ti); //caculate the average transmission rate
 	printf("Time(ms) : %.3f, Data sent(byte): %d\nData rate: %f (Kbytes/s)\n", ti, (int)len, rt);
 
 	close(sockfd);
@@ -92,42 +92,60 @@ float str_cli(FILE *fp, int sockfd, long *len)
 	printf("The file length is %d bytes\n", (int)lsize);
 	printf("the packet length is %d bytes\n",DATALEN);
 
-// allocate memory to contain the whole file.
+	// allocate memory to contain the whole file.
 	buf = (char *) malloc (lsize);
 	if (buf == NULL) exit (2);
 
-  // copy the file into the buffer.
+	// copy the file into the buffer.
 	fread (buf,1,lsize,fp);
 
-  /*** the whole file is loaded in the buffer. ***/
-	buf[lsize] ='\0';									//append the end byte
-	gettimeofday(&sendt, NULL);							//get the current time
+	/*** the whole file is loaded in the buffer. ***/
+	buf[lsize] ='\0'; //append the end byte
+	gettimeofday(&sendt, NULL); //get the current time
 	while(ci<= lsize)
 	{
-		if ((lsize+1-ci) <= DATALEN)
+		if ((lsize+1-ci) <= DATALEN) // find slen
 			slen = lsize+1-ci;
 		else 
 			slen = DATALEN;
-		memcpy(sends, (buf+ci), slen);
+		memcpy(sends, (buf+ci), slen); // copies relevant data into buf
+
+		/////////// send small packet ///////////
 		n = send(sockfd, &sends, slen, 0);
-		// TODO: add func to receive ACK from server before sending next data
-		if(n == -1) { // TODO: add in condition for receiving an NACK from client
-			printf("send error!");								//send the data
-			// TODO: add in handling of error (resend data by resetting ci value)
+		if (n == -1) {
+			printf("send error!");
 			exit(1);
 		}
-		ci += slen;
+
+		/////////// receive ACK from server ///////////
+		// TODO: add func to receive ACK from server before sending next data
+		n = recv(sockfd, &ack, 2, 0);
+
+		if (n == -1) { // TODO: Error receiving acknowledgement 
+			printf("error when receiving ACK or NACK\n");
+			exit(1);
+		}
+		if (ack.num == 1){ // TODO: ACK received from server
+			// printf("ACK received\n");
+			ci += slen;
+		}
+		else if (ack.num == 0){ // TODO: NACK received from server
+			// printf("NACK received\n");
+		}
 	}
-	if ((n= recv(sockfd, &ack, 2, 0))==-1)                                   //receive the ack
-	{
-		printf("error when receiving\n");
-		exit(1);
-	}
-	if (ack.num != 1|| ack.len != 0)
-		printf("error in transmission\n");
+
+	// printf("waiting for final ack\n");
+	// if ((n= recv(sockfd, &ack, 2, 0))==-1) //receive the ack for completion
+	// {
+	// 	printf("error when receiving\n");
+	// 	exit(1);
+	// }
+	// if (ack.num != 1|| ack.len != 0)
+	// 	printf("error in transmission\n");
+
 	gettimeofday(&recvt, NULL);
-	*len= ci;                                                         //get current time
-	tv_sub(&recvt, &sendt);                                                                 // get the whole trans time
+	*len= ci; //get current time
+	tv_sub(&recvt, &sendt); // get the whole trans time
 	time_inv += (recvt.tv_sec)*1000.0 + (recvt.tv_usec)/1000.0;
 	return(time_inv);
 }
